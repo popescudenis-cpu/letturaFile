@@ -1,4 +1,5 @@
 package com.example;
+
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -6,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 public class GestoreClient implements Runnable {
     private final Socket socket;
     private final File cartella = new File("documenti");
+    private static final String[] ESTENSIONI_AMMESSE = {"txt", "md", "csv"};
 
     public GestoreClient(Socket socket) {
         this.socket = socket;
@@ -23,7 +25,7 @@ public class GestoreClient implements Runnable {
             if (richiesta == null) {
                 return;
             }
-            
+
             System.out.println("Richiesta ricevuta: " + richiesta);
 
             if (richiesta.trim().isEmpty()) {
@@ -39,27 +41,35 @@ public class GestoreClient implements Runnable {
                 return;
             }
 
-            String nomeFile = parti[1];
+            String nomeBase = parti[1];
 
-            if (!nomeFile.endsWith(".txt") || 
-                nomeFile.contains("/") || 
-                nomeFile.contains("\\") || 
-                nomeFile.contains("..")) {
-                
-                out.println("ERR INVALID"); 
+            if (nomeBase.contains(".") || nomeBase.contains("/") || nomeBase.contains("\\")) {
+                out.println("ERR SYNTAX");
                 out.println();
                 return;
             }
 
-            File file = new File(cartella, nomeFile);
-            if (!file.isFile()) {
-                out.println("ERR NOTFOUND"); 
+            File fileTrovato = null;
+            String estensioneTrovata = null;
+
+            for (String est : ESTENSIONI_AMMESSE) {
+                File candidato = new File(cartella, nomeBase + "." + est);
+                if (candidato.isFile()) {
+                    fileTrovato = candidato;
+                    estensioneTrovata = est;
+                    break;
+                }
+            }
+
+            if (fileTrovato == null) {
+                out.println("ERR NOTFOUND");
                 out.println();
                 return;
             }
 
-            try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+            try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(new FileInputStream(fileTrovato), StandardCharsets.UTF_8))) {
                 out.println("OK FILE");
+                out.println("TYPE " + estensioneTrovata);
                 out.println();
                 statoInviato = true;
 
@@ -68,9 +78,9 @@ public class GestoreClient implements Runnable {
                     out.println(rigaFile);
                 }
             } catch (IOException e) {
-                System.err.println("Errore durante la lettura del file " + nomeFile + ": " + e.getMessage());
+                System.err.println("Errore durante la lettura del file " + fileTrovato.getName() + ": " + e.getMessage());
                 if (!statoInviato) {
-                    out.println("ERR READ"); 
+                    out.println("ERR NOTFOUND");
                     out.println();
                 }
             }
