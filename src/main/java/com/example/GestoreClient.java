@@ -7,7 +7,11 @@ import java.nio.charset.StandardCharsets;
 public class GestoreClient implements Runnable {
     private final Socket socket;
     private final File cartella = new File("documenti");
-    private static final String[] ESTENSIONI_AMMESSE = {"txt", "md", "csv"};
+    private static final String[][] TIPI = {
+        {"txt", "text/plain; charset=utf-8"},
+        {"md",  "text/markdown; charset=utf-8"},
+        {"csv", "text/csv; charset=utf-8"}
+    };
 
     public GestoreClient(Socket socket) {
         this.socket = socket;
@@ -50,13 +54,15 @@ public class GestoreClient implements Runnable {
             }
 
             File fileTrovato = null;
-            String estensioneTrovata = null;
+            String contentTypeTrovato = null;
 
-            for (String est : ESTENSIONI_AMMESSE) {
+            for (String[] riga : TIPI) {
+                String est = riga[0];
+                String mime = riga[1];
                 File candidato = new File(cartella, nomeBase + "." + est);
                 if (candidato.isFile()) {
                     fileTrovato = candidato;
-                    estensioneTrovata = est;
+                    contentTypeTrovato = mime;
                     break;
                 }
             }
@@ -69,7 +75,7 @@ public class GestoreClient implements Runnable {
 
             try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(new FileInputStream(fileTrovato), StandardCharsets.UTF_8))) {
                 out.println("OK FILE");
-                out.println("TYPE " + estensioneTrovata);
+                out.println("Content-Type: " + contentTypeTrovato);
                 out.println();
                 statoInviato = true;
 
