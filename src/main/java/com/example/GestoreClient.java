@@ -32,30 +32,26 @@ public class GestoreClient implements Runnable {
             System.out.println("Richiesta ricevuta: " + richiesta);
 
             if (richiesta.trim().isEmpty()) {
-                out.println("ERR SYNTAX");
-                out.println();
+                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Richiesta vuota.\n");
                 return;
             }
 
             String[] parti = richiesta.trim().split("\\s+");
 
             if (!parti[0].equals("LEGGI")) {
-                out.println("ERR UNKNOWNCMD");
-                out.println();
+                inviaRisposta(out, 501, "Not Implemented", "text/plain; charset=utf-8", "Comando \"" + parti[0] + "\" non supportato.\n");
                 return;
             }
 
             if (parti.length != 2) {
-                out.println("ERR SYNTAX");
-                out.println();
+                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Sintassi non valida. Uso: LEGGI nomefile\n");
                 return;
             }
 
             String nomeBase = parti[1];
 
             if (nomeBase.contains(".") || nomeBase.contains("/") || nomeBase.contains("\\")) {
-                out.println("ERR SYNTAX");
-                out.println();
+                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Nome file non valido.\n");
                 return;
             }
 
@@ -74,8 +70,7 @@ public class GestoreClient implements Runnable {
             }
 
             if (fileTrovato == null) {
-                out.println("ERR NOTFOUND");
-                out.println();
+                inviaRisposta(out, 404, "Not Found", "text/plain; charset=utf-8", "Il file \"" + nomeBase + "\" non esiste.\n");
                 return;
             }
 
@@ -83,21 +78,26 @@ public class GestoreClient implements Runnable {
                 byte[] dati = Files.readAllBytes(fileTrovato.toPath());
                 String contenuto = new String(dati, StandardCharsets.UTF_8);
 
-                out.println("OK FILE");
-                out.println("Content-Type: " + contentTypeTrovato);
-                out.println("Content-Length: " + dati.length);
-                out.println();
-                out.print(contenuto);
-                out.flush();
+                inviaRisposta(out, 200, "OK", contentTypeTrovato, contenuto);
 
             } catch (IOException e) {
                 System.err.println("Errore durante la lettura del file " + fileTrovato.getName() + ": " + e.getMessage());
-                out.println("ERR READ");
-                out.println();
+                inviaRisposta(out, 500, "Internal Server Error", "text/plain; charset=utf-8", "Errore interno durante la lettura del file.\n");
             }
 
         } catch (IOException e) {
             System.err.println("Errore di comunicazione con il client: " + e.getMessage());
         }
+    }
+
+    private void inviaRisposta(PrintWriter out, int codice, String frase, String contentType, String contenuto) {
+        byte[] byteContenuto = contenuto.getBytes(StandardCharsets.UTF_8);
+
+        out.println(codice + " " + frase);
+        out.println("Content-Type: " + contentType);
+        out.println("Content-Length: " + byteContenuto.length);
+        out.println();
+        out.print(contenuto);
+        out.flush();
     }
 }
