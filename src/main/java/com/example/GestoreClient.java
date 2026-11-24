@@ -3,6 +3,7 @@ package com.example;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 public class GestoreClient implements Runnable {
     private final Socket socket;
@@ -19,8 +20,6 @@ public class GestoreClient implements Runnable {
 
     @Override
     public void run() {
-        boolean statoInviato = false;
-
         try (Socket clientSocket = this.socket;
              BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
              PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true)) {
@@ -39,7 +38,14 @@ public class GestoreClient implements Runnable {
             }
 
             String[] parti = richiesta.trim().split("\\s+");
-            if (parti.length != 2 || !parti[0].equals("LEGGI")) {
+
+            if (!parti[0].equals("LEGGI")) {
+                out.println("ERR UNKNOWNCMD");
+                out.println();
+                return;
+            }
+
+            if (parti.length != 2) {
                 out.println("ERR SYNTAX");
                 out.println();
                 return;
@@ -73,22 +79,21 @@ public class GestoreClient implements Runnable {
                 return;
             }
 
-            try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(new FileInputStream(fileTrovato), StandardCharsets.UTF_8))) {
+            try {
+                byte[] dati = Files.readAllBytes(fileTrovato.toPath());
+                String contenuto = new String(dati, StandardCharsets.UTF_8);
+
                 out.println("OK FILE");
                 out.println("Content-Type: " + contentTypeTrovato);
+                out.println("Content-Length: " + dati.length);
                 out.println();
-                statoInviato = true;
+                out.print(contenuto);
+                out.flush();
 
-                String rigaFile;
-                while ((rigaFile = fileReader.readLine()) != null) {
-                    out.println(rigaFile);
-                }
             } catch (IOException e) {
                 System.err.println("Errore durante la lettura del file " + fileTrovato.getName() + ": " + e.getMessage());
-                if (!statoInviato) {
-                    out.println("ERR NOTFOUND");
-                    out.println();
-                }
+                out.println("ERR READ");
+                out.println();
             }
 
         } catch (IOException e) {
