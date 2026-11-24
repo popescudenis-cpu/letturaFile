@@ -37,21 +37,41 @@ public class GestoreClient implements Runnable {
             }
 
             String[] parti = richiesta.trim().split("\\s+");
-
-            if (!parti[0].equals("LEGGI")) {
-                inviaRisposta(out, 501, "Not Implemented", "text/plain; charset=utf-8", "Comando \"" + parti[0] + "\" non supportato.\n");
+            if (parti.length != 3) {
+                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Sintassi non valida. Uso: LEGGI /risorsa ARCH/1.0\n");
                 return;
             }
 
-            if (parti.length != 2) {
-                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Sintassi non valida. Uso: LEGGI nomefile\n");
+            String comando = parti[0];
+            String risorsa = parti[1];
+            String versione = parti[2];
+
+
+            if (!risorsa.startsWith("/")) {
+                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "La risorsa deve iniziare con /.\n");
                 return;
             }
 
-            String nomeBase = parti[1];
 
-            if (nomeBase.contains(".") || nomeBase.contains("/") || nomeBase.contains("\\")) {
-                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Nome file non valido.\n");
+            if (!versione.startsWith("ARCH/")) {
+                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Formato versione non valido.\n");
+                return;
+            }
+
+            if (!versione.equals("ARCH/1.0")) {
+                inviaRisposta(out, 505, "Version Not Supported", "text/plain; charset=utf-8", "Versione del protocollo non supportata.\n");
+                return;
+            }
+
+            if (!comando.equals("LEGGI")) {
+                inviaRisposta(out, 501, "Not Implemented", "text/plain; charset=utf-8", "Comando \"" + comando + "\" non supportato.\n");
+                return;
+            }
+
+            String nomeBase = risorsa.substring(1);
+
+            if (nomeBase.isEmpty() || nomeBase.contains(".") || nomeBase.contains("/") || nomeBase.contains("\\")) {
+                inviaRisposta(out, 400, "Bad Request", "text/plain; charset=utf-8", "Nome risorsa non valido.\n");
                 return;
             }
 
@@ -93,7 +113,7 @@ public class GestoreClient implements Runnable {
     private void inviaRisposta(PrintWriter out, int codice, String frase, String contentType, String contenuto) {
         byte[] byteContenuto = contenuto.getBytes(StandardCharsets.UTF_8);
 
-        out.println(codice + " " + frase);
+        out.println("ARCH/1.0 " + codice + " " + frase);
         out.println("Content-Type: " + contentType);
         out.println("Content-Length: " + byteContenuto.length);
         out.println();
